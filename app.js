@@ -1,37 +1,42 @@
-const express = require('express')
-const app = express()
-const port = 3000
-const sqlite3 = require('sqlite3').verbose();
-const db = new sqlite3.Database('development.sqlite3');
+const express = require("express");
+const morgan = require("morgan");
+const mysql = require("mysql");
+const myConnection = require("express-myconnection");
+const path = require('path');
+const app = express();
+require('dotenv').config();
 
-try {
-	db.serialize(() => {
-		var table_exists = false
+// To get the database password from the .env file
+const PASS = process.env.DATABASE_PASSWORD;
 
-		db.each("SELECT name FROM sqlite_master WHERE type='table' AND name='customer';", (err, row) => {
-			console.log(row);
-			table_exists = true
-		}, function() {
-			console.log('im here now')
-			console.log(table_exists)
-			if (table_exists == false) {
-			    const db2 = new sqlite3.Database('development.sqlite3');
-				db2.run("CREATE TABLE customer ( id INTEGER PRIMARY KEY, name VARCHAR(50) NOT NULL, address VARCHAR(100) NOT NULL, phone VARCHAR(15));");
-				db2.close();
-			}
-		});
+// Importing routes
+const customerRoutes = require('./routes/customer');
 
-	});
+// settings
+app.set('port', process.env.PORT || 3000);
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
 
-	db.close();
-} catch (e) {
-	console.log(e)
-}
+// middlewares
+app.use(morgan('dev'));
 
-app.get('/', (req, res) => {
-	res.send('Hello World!')
-})
+app.use(myConnection(mysql, {
+    host: 'localhost',
+    user: 'root',
+    password: PASS,
+    port: '3306',
+    database: 'crudnodejsmysql'
+}, 'single'));
 
-app.listen(port, () => {
-	console.log(`Example app listening on port ${port}`)
+app.use(express.urlencoded({extended: false}));
+
+// Routes
+app.use('/', customerRoutes);
+
+// Static files
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Starting the server
+app.listen(app.get('port'), () => {
+    console.log('Server on port 3000');
 })
